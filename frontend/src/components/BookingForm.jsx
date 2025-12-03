@@ -1,16 +1,27 @@
 import React, { useEffect, useState } from "react";
-import { Form, Input, Select, DatePicker, TimePicker, Button, Card, Space } from "antd";
+import {
+  Form,
+  Input,
+  Select,
+  DatePicker,
+  TimePicker,
+  Button,
+  Card,
+  Space,
+  message,
+} from "antd";
 import dayjs from "dayjs";
 import http from "../api/http";
 
 const { TextArea } = Input;
 
-export default function BookingForm({ onSuccess }) {
+export default function BookingForm() {
   const [companies, setCompanies] = useState([]);
   const [loadingCompanies, setLoadingCompanies] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [form] = Form.useForm();
 
+  // ------------------- Load Companies -------------------
   useEffect(() => {
     async function fetchCompanies() {
       setLoadingCompanies(true);
@@ -26,6 +37,7 @@ export default function BookingForm({ onSuccess }) {
     fetchCompanies();
   }, []);
 
+  // ------------------- Submit -------------------
   const onFinish = async (values) => {
     setSubmitting(true);
     try {
@@ -42,33 +54,61 @@ export default function BookingForm({ onSuccess }) {
         contact_name: values.contact_name,
         contact_phone: values.contact_phone,
       };
-      await http.post("/bookings", payload);
+
+      // 1) Save booking
+      const res = await http.post("/bookings", payload);
+
+      const bookingId = res.data.booking_id;
+      if (!bookingId) {
+        message.error("ไม่พบ booking_id จาก backend");
+        return;
+      }
+
+      message.success("บันทึกสำเร็จ! กำลังดาวน์โหลดใบจอง...");
+
+      // 2) Auto download PDF
+      const pdfRes = await http.get(`/bookings/${bookingId}/pdf`, {
+        responseType: "blob",
+      });
+
+      const blob = new Blob([pdfRes.data], { type: "application/pdf" });
+      const url = window.URL.createObjectURL(blob);
+
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `booking_${bookingId}.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+
+      window.URL.revokeObjectURL(url);
+
+      // Reset form
       form.resetFields();
-      if (onSuccess) onSuccess();
     } catch (err) {
       console.error(err);
+      message.error("บันทึกไม่สำเร็จ");
     } finally {
       setSubmitting(false);
     }
   };
 
+  // ------------------- Render -------------------
   return (
     <Card title="ฟอร์มจอง Messenger">
       <Form
         layout="vertical"
         form={form}
         onFinish={onFinish}
-        initialValues={{
-          booking_date: dayjs(),
-        }}
+        initialValues={{ booking_date: dayjs() }}
       >
         <Form.Item
-          label="บริษัท"
+          label="Company"
           name="company_id"
-          rules={[{ required: true, message: "กรุณาเลือกบริษัท" }]}
+          rules={[{ required: true, message: "Please choose company" }]}
         >
           <Select
-            placeholder="เลือกบริษัท"
+            placeholder="Choose company"
             loading={loadingCompanies}
             options={companies.map((c) => ({ label: c.name, value: c.id }))}
           />
@@ -76,72 +116,72 @@ export default function BookingForm({ onSuccess }) {
 
         <Space style={{ width: "100%" }} size="large">
           <Form.Item
-            label="วันที่จอง"
+            label="Booking date"
             name="booking_date"
             style={{ flex: 1 }}
-            rules={[{ required: true, message: "กรุณาเลือกวันที่" }]}
+            rules={[{ required: true, message: "Please choose date" }]}
           >
             <DatePicker style={{ width: "100%" }} format="YYYY-MM-DD" />
           </Form.Item>
 
           <Form.Item
-            label="เวลา"
+            label="Booking time"
             name="booking_time"
             style={{ flex: 1 }}
-            rules={[{ required: true, message: "กรุณาเลือกเวลา" }]}
+            rules={[{ required: true, message: "Please choose time" }]}
           >
             <TimePicker format="HH:mm" style={{ width: "100%" }} />
           </Form.Item>
         </Space>
 
         <Form.Item
-          label="ชื่อผู้แจ้ง"
+          label="Request name"
           name="requester_name"
-          rules={[{ required: true, message: "กรุณากรอกชื่อผู้แจ้ง" }]}
+          rules={[{ required: true, message: "Please input Request name" }]}
         >
           <Input />
         </Form.Item>
 
         <Form.Item
-          label="ประเภทงาน"
+          label="Job type"
           name="job_type"
-          rules={[{ required: true, message: "กรุณากรอกประเภทงาน" }]}
+          rules={[{ required: true, message: "Please select job type" }]}
         >
           <Input placeholder="เช่น ส่งเอกสาร, รับเอกสาร ฯลฯ" />
         </Form.Item>
 
         <Form.Item
-          label="รายละเอียด"
+          label="Description"
           name="detail"
-          rules={[{ required: true, message: "กรุณากรอกรายละเอียด" }]}
+          rules={[{ required: true, message: "Please input your description" }]}
         >
           <TextArea rows={4} />
         </Form.Item>
 
         <Space style={{ width: "100%" }} size="large">
           <Form.Item
-            label="หน่วยงาน"
+            label="Customer name"
             name="department"
             style={{ flex: 1 }}
-            rules={[{ required: true, message: "กรุณากรอกหน่วยงาน" }]}
+            rules={[{ required: true, message: "Please input customer name" }]}
           >
             <Input />
           </Form.Item>
 
           <Form.Item
-            label="อาคาร"
+            label="Building"
             name="building"
             style={{ flex: 1 }}
-            rules={[{ required: true, message: "กรุณากรอกอาคาร" }]}
+            rules={[{ required: true, message: "Please input building" }]}
           >
             <Input />
           </Form.Item>
 
           <Form.Item
-            label="ชั้น"
+            label="Floor"
             name="floor"
             style={{ flex: 1 }}
-            rules={[{ required: true, message: "กรุณากรอกชั้น" }]}
+            rules={[{ required: true, message: "Please input floor" }]}
           >
             <Input />
           </Form.Item>
@@ -149,19 +189,19 @@ export default function BookingForm({ onSuccess }) {
 
         <Space style={{ width: "100%" }} size="large">
           <Form.Item
-            label="ชื่อผู้ติดต่อ"
+            label="Contact name"
             name="contact_name"
             style={{ flex: 1 }}
-            rules={[{ required: true, message: "กรุณากรอกชื่อผู้ติดต่อ" }]}
+            rules={[{ required: true, message: "Please input contact name" }]}
           >
             <Input />
           </Form.Item>
 
           <Form.Item
-            label="เบอร์โทร"
+            label="Telephone"
             name="contact_phone"
             style={{ flex: 1 }}
-            rules={[{ required: true, message: "กรุณากรอกเบอร์โทร" }]}
+            rules={[{ required: true, message: "Please input telephone" }]}
           >
             <Input />
           </Form.Item>
@@ -169,7 +209,7 @@ export default function BookingForm({ onSuccess }) {
 
         <Form.Item>
           <Button type="primary" htmlType="submit" loading={submitting}>
-            บันทึกการจอง
+            Submit & Print
           </Button>
         </Form.Item>
       </Form>

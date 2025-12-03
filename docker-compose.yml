@@ -22,7 +22,7 @@ services:
     depends_on:
       - db
     ports:
-      - "5000:5000"
+      - "16000:16000"
 
   frontend:
     build: ./frontend
@@ -30,7 +30,7 @@ services:
     depends_on:
       - backend
     environment:
-      - REACT_APP_API_BASE_URL=http://localhost:5000
+      - REACT_APP_API_BASE_URL=http://localhost:6000
     ports:
       - "3000:80"
 
