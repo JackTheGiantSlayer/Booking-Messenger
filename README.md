@@ -1,2 +1,2 @@
 # Booking-Messenger
-Booking-Messenger for ISC
+Booking-Messenger
