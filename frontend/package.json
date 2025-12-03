@@ -1,0 +1,21 @@
+{
+  "name": "messenger-booking-frontend",
+  "version": "1.0.0",
+  "private": true,
+  "dependencies": {
+    "antd": "^5.21.0",
+    "axios": "^1.7.2",
+    "dayjs": "^1.11.13",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "react-router-dom": "^6.28.0"
+  },
+  "devDependencies": {
+    "@babel/plugin-proposal-decorators": "^7.24.1",
+    "react-scripts": "5.0.1"
+  },
+  "scripts": {
+    "start": "react-scripts start",
+    "build": "react-scripts build"
+  }
+}
