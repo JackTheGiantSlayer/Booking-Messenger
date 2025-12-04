@@ -14,6 +14,7 @@ import dayjs from "dayjs";
 import http from "../api/http";
 
 const { TextArea } = Input;
+const { Option } = Select;
 
 export default function BookingForm() {
   const [companies, setCompanies] = useState([]);
@@ -46,7 +47,7 @@ export default function BookingForm() {
         booking_date: values.booking_date.format("YYYY-MM-DD"),
         booking_time: values.booking_time.format("HH:mm"),
         requester_name: values.requester_name,
-        job_type: values.job_type,
+        job_type: values.job_type,          // <-- จะได้ค่าจาก Select เช่น "send"
         detail: values.detail,
         department: values.department,
         building: values.building,
@@ -55,9 +56,7 @@ export default function BookingForm() {
         contact_phone: values.contact_phone,
       };
 
-      // 1) Save booking
       const res = await http.post("/bookings", payload);
-
       const bookingId = res.data.booking_id;
       if (!bookingId) {
         message.error("ไม่พบ booking_id จาก backend");
@@ -66,7 +65,6 @@ export default function BookingForm() {
 
       message.success("บันทึกสำเร็จ! กำลังดาวน์โหลดใบจอง...");
 
-      // 2) Auto download PDF
       const pdfRes = await http.get(`/bookings/${bookingId}/pdf`, {
         responseType: "blob",
       });
@@ -82,8 +80,6 @@ export default function BookingForm() {
       link.remove();
 
       window.URL.revokeObjectURL(url);
-
-      // Reset form
       form.resetFields();
     } catch (err) {
       console.error(err);
@@ -142,12 +138,21 @@ export default function BookingForm() {
           <Input />
         </Form.Item>
 
+        {/* 🔻 เปลี่ยนจาก Input เป็น Select */}
         <Form.Item
           label="Job type"
           name="job_type"
           rules={[{ required: true, message: "Please select job type" }]}
         >
-          <Input placeholder="เช่น ส่งเอกสาร, รับเอกสาร ฯลฯ" />
+          <Select placeholder="Select job type">
+            <Option value="send">send</Option>
+            <Option value="receive">receive</Option>
+            <Option value="send+receive">send+receive</Option>
+            <Option value="buy">buy</Option>
+            <Option value="sell">sell</Option>
+            <Option value="deposit">deposit</Option>
+            <Option value="other">other</Option>
+          </Select>
         </Form.Item>
 
         <Form.Item

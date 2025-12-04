@@ -16,6 +16,7 @@ import AdminDashboard from "./pages/AdminDashboard";
 import UserManagementPage from "./pages/UserManagementPage";
 import MessengerSchedulePage from "./pages/MessengerSchedulePage";
 import ReportPage from "./pages/ReportPage";
+import UserDashboardPage from "./pages/UserDashboardPage"; // ⭐ ใหม่ ต้องมีไฟล์นี้
 
 const { Header, Content } = Layout;
 
@@ -23,7 +24,6 @@ function App() {
   const [user, setUser] = useState(null);
   const [menuKey, setMenuKey] = useState("login");
 
-  // โหลด user จาก localStorage ตอนเปิดหน้า
   useEffect(() => {
     const token = localStorage.getItem("access_token");
     const userStr = localStorage.getItem("user");
@@ -31,12 +31,7 @@ function App() {
       try {
         const u = JSON.parse(userStr);
         setUser(u);
-        // ถ้าเป็น admin → default dashboard, ถ้าไม่ใช่ → booking
-        if (u.role === "ADMIN") {
-          setMenuKey("dashboard");
-        } else {
-          setMenuKey("booking");
-        }
+        setMenuKey(u.role === "ADMIN" ? "dashboard" : "user-dashboard"); // ⭐ ผู้ใช้ธรรมดาไปหน้า Dashboard ก่อน
       } catch (e) {
         console.error(e);
       }
@@ -47,11 +42,7 @@ function App() {
 
   const handleLoginSuccess = (userData) => {
     setUser(userData);
-    if (userData.role === "ADMIN") {
-      setMenuKey("dashboard");
-    } else {
-      setMenuKey("booking");
-    }
+    setMenuKey(userData.role === "ADMIN" ? "dashboard" : "user-dashboard");
   };
 
   const handleLogout = () => {
@@ -61,11 +52,9 @@ function App() {
     setMenuKey("login");
   };
 
-  // ---------- เลือก content ตาม user + menuKey ---------- //
-  let contentNode = null;
-
+  // ----- เปลี่ยนหน้าตามเมนู ----- //
+  let contentNode;
   if (!user) {
-    // ยังไม่ login → โชว์หน้า login ใน Content
     contentNode = (
       <div
         style={{
@@ -82,119 +71,56 @@ function App() {
       </div>
     );
   } else {
-    // login แล้ว → สลับหน้าตาม menuKey
     switch (menuKey) {
       case "dashboard":
-        contentNode = (
-          <div style={{ padding: 24 }}>
-            <AdminDashboard />
-          </div>
-        );
+        contentNode = <div style={{ padding: 24 }}><AdminDashboard /></div>;
+        break;
+      case "user-dashboard":
+        contentNode = <div style={{ padding: 24 }}><UserDashboardPage /></div>;
         break;
       case "users":
-        contentNode = (
-          <div style={{ padding: 24 }}>
-            <UserManagementPage />
-          </div>
-        );
+        contentNode = <div style={{ padding: 24 }}><UserManagementPage /></div>;
         break;
       case "schedule":
-        contentNode = (
-          <div style={{ padding: 24 }}>
-            <MessengerSchedulePage />
-          </div>
-        );
+        contentNode = <div style={{ padding: 24 }}><MessengerSchedulePage /></div>;
         break;
-      case "report": // ⭐ เมนูรายงาน
-        contentNode = (
-          <div style={{ padding: 24 }}>
-            <ReportPage />
-          </div>
-        );
+      case "report":
+        contentNode = <div style={{ padding: 24 }}><ReportPage /></div>;
         break;
       case "booking":
       default:
-        contentNode = (
-          <div style={{ padding: 24 }}>
-            <BookingForm />
-          </div>
-        );
-        break;
+        contentNode = <div style={{ padding: 24 }}><BookingForm /></div>;
     }
   }
 
-  // ---------- สร้างเมนูตาม role ---------- //
+  // ----- สร้างเมนูตาม Role ----- //
   const menuItems = [];
-
   if (!user) {
-    menuItems.push({
-      key: "login",
-      icon: <LoginOutlined />,
-      label: "Login",
-    });
+    menuItems.push({ key: "login", icon: <LoginOutlined />, label: "Login" });
   } else {
-    // สำหรับ admin
     if (user.role === "ADMIN") {
       menuItems.push(
-        {
-          key: "dashboard",
-          icon: <DashboardOutlined />,
-          label: "Dashboard",
-        },
-        {
-          key: "booking",
-          icon: <FileAddOutlined />,
-          label: "Booking Messenger",
-        },
-        {
-          key: "users",
-          icon: <UserOutlined />,
-          label: "User Management",
-        },
-        {
-          key: "schedule",
-          icon: <TableOutlined />,
-          label: "Messenger Queue",
-        },
-        {
-          key: "report",              // ⭐ เมนูใหม่
-          icon: <BarChartOutlined />, // หรือ TableOutlined ก็ได้
-          label: "Report",
-        }
+        { key: "dashboard", icon: <DashboardOutlined />, label: "Dashboard" },
+        { key: "booking", icon: <FileAddOutlined />, label: "Booking Messenger" },
+        { key: "users", icon: <UserOutlined />, label: "User Management" },
+        { key: "schedule", icon: <TableOutlined />, label: "Messenger Queue" },
+        { key: "report", icon: <BarChartOutlined />, label: "Report" },
       );
     } else {
-      // user ทั่วไป
-      menuItems.push({
-        key: "booking",
-        icon: <FileAddOutlined />,
-        label: "ฟอร์มจอง Messenger",
-      });
-      // อนาคตจะเพิ่ม "รายการจองของฉัน" ก็ใส่เพิ่มที่นี่
+      menuItems.push(
+        { key: "user-dashboard", icon: <DashboardOutlined />, label: "Dashboard" },
+        { key: "booking", icon: <FileAddOutlined />, label: "ฟอร์มจอง Messenger" },
+      );
     }
   }
 
   return (
     <Layout style={{ minHeight: "100vh" }}>
-      <Header
-        style={{
-          display: "flex",
-          alignItems: "center",
-          padding: "0 24px",
-        }}
-      >
-        {/* โลโก้ / ชื่อระบบ */}
-        <div
-          style={{
-            color: "#fff",
-            fontSize: 18,
-            fontWeight: 600,
-            marginRight: 32,
-          }}
-        >
+      <Header style={{ display: "flex", alignItems: "center", padding: "0 24px" }}>
+        <div style={{ color: "#fff", fontSize: 18, fontWeight: 600, marginRight: 32 }}>
           Booking Messenger System
         </div>
 
-        {/* เมนูหลัก */}
         <Menu
           theme="dark"
           mode="horizontal"
@@ -204,18 +130,12 @@ function App() {
           items={menuItems}
         />
 
-        {/* มุมขวา: ชื่อ user + logout */}
         {user && (
           <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
             <span style={{ color: "#fff" }}>
-              {user.full_name || user.username}{" "}
-              {user.role === "ADMIN" ? "(Admin)" : ""}
+              {user.full_name || user.username} {user.role === "ADMIN" ? "(Admin)" : ""}
             </span>
-            <Button
-              icon={<LogoutOutlined />}
-              size="small"
-              onClick={handleLogout}
-            >
+            <Button icon={<LogoutOutlined />} size="small" onClick={handleLogout}>
               Logout
             </Button>
           </div>
