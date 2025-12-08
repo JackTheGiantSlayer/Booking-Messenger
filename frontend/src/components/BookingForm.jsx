@@ -22,7 +22,6 @@ export default function BookingForm() {
   const [submitting, setSubmitting] = useState(false);
   const [form] = Form.useForm();
 
-  // ------------------- Load Companies -------------------
   useEffect(() => {
     async function fetchCompanies() {
       setLoadingCompanies(true);
@@ -38,7 +37,6 @@ export default function BookingForm() {
     fetchCompanies();
   }, []);
 
-  // ------------------- Submit -------------------
   const onFinish = async (values) => {
     setSubmitting(true);
     try {
@@ -47,11 +45,11 @@ export default function BookingForm() {
         booking_date: values.booking_date.format("YYYY-MM-DD"),
         booking_time: values.booking_time.format("HH:mm"),
         requester_name: values.requester_name,
-        job_type: values.job_type,          // <-- จะได้ค่าจาก Select เช่น "send"
+        job_type: values.job_type,
         detail: values.detail,
         department: values.department,
-        building: values.building,
-        floor: values.floor,
+        building: values.building || "",  // ✅ ว่างได้
+        floor: values.floor || "",        // ✅ ว่างได้
         contact_name: values.contact_name,
         contact_phone: values.contact_phone,
       };
@@ -78,8 +76,8 @@ export default function BookingForm() {
       document.body.appendChild(link);
       link.click();
       link.remove();
-
       window.URL.revokeObjectURL(url);
+
       form.resetFields();
     } catch (err) {
       console.error(err);
@@ -89,7 +87,6 @@ export default function BookingForm() {
     }
   };
 
-  // ------------------- Render -------------------
   return (
     <Card title="ฟอร์มจอง Messenger">
       <Form
@@ -138,7 +135,6 @@ export default function BookingForm() {
           <Input />
         </Form.Item>
 
-        {/* 🔻 เปลี่ยนจาก Input เป็น Select */}
         <Form.Item
           label="Job type"
           name="job_type"
@@ -177,7 +173,7 @@ export default function BookingForm() {
             label="Building"
             name="building"
             style={{ flex: 1 }}
-            rules={[{ required: true, message: "Please input building" }]}
+            rules={[]}
           >
             <Input />
           </Form.Item>
@@ -186,7 +182,7 @@ export default function BookingForm() {
             label="Floor"
             name="floor"
             style={{ flex: 1 }}
-            rules={[{ required: true, message: "Please input floor" }]}
+            rules={[]}
           >
             <Input />
           </Form.Item>

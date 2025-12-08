@@ -60,8 +60,8 @@ def create_booking():
         "job_type",
         "detail",
         "department",
-        "building",
-        "floor",
+        #"building",
+        #"floor",
         "contact_name",
         "contact_phone",
     ]
@@ -165,18 +165,48 @@ def generate_booking_pdf(booking_id):
     row_height = 24
     label_col_width = 90
 
-    c.setFont("THSarabun", 16)
+    font_name = "THSarabun"
+    font_size = 16
+    c.setFont(font_name, font_size)
 
-    # =================== 1) กล่องบน: บริษัท / วันที่ / เวลา / ชื่อผู้แจ้ง / ประเภท / Messenger ===================
+    # ความกว้างฝั่ง value (ใช้ truncate/wrap)
+    value_max_width = table_width - label_col_width - 16
 
-    top_box_rows = 6  # เดิม 5 เพิ่มแถว Messenger
+    # ---------- helper: ตัดข้อความให้ไม่เกินความกว้าง cell ---------- #
+    def shorten_to_width(text, max_width: float) -> str:
+        if not text:
+            return ""
+        s = str(text)
+        if c.stringWidth(s, font_name, font_size) <= max_width:
+            return s
+        while s and c.stringWidth(s + "...", font_name, font_size) > max_width:
+            s = s[:-1]
+        return (s + "...") if s else "..."
+
+    # ---------- helper: wrap ข้อความหลายบรรทัด (ใช้กับรายละเอียด/หน่วยงาน) ---------- #
+    def wrap_text(text):
+        lines = []
+        for raw_line in (text or "").split("\n"):
+            words = raw_line.split(" ")
+            current = ""
+            for w in words:
+                test = (current + " " + w).strip()
+                if c.stringWidth(test, font_name, font_size) <= value_max_width:
+                    current = test
+                else:
+                    if current:
+                        lines.append(current)
+                    current = w
+            if current:
+                lines.append(current)
+        return lines
+
+    # =================== 1) กล่องบน ===================
+    top_box_rows = 6
     top_box_height = top_box_rows * row_height
 
-    # กรอบนอก
     c.rect(left, top - top_box_height, table_width, top_box_height)
-    # เส้นแบ่งแนวตั้ง label / value
     c.line(left + label_col_width, top, left + label_col_width, top - top_box_height)
-    # เส้นแนวนอนคั่นแต่ละบรรทัด
     for i in range(1, top_box_rows):
         y = top - i * row_height
         c.line(left, y, right, y)
@@ -188,13 +218,14 @@ def generate_booking_pdf(booking_id):
         booking.booking_time.strftime("%H:%M น.") if booking.booking_time else "",
         booking.requester_name or "",
         booking.job_type or "",
-        booking.messenger_name or "",  # ✅ ใช้ messenger_name แสดงที่หัวฟอร์ม
+        booking.messenger_name or "",
     ]
 
     y = top - row_height + 7
     for label, value in zip(labels_top, values_top):
         c.drawString(left + 5, y, label)
-        c.drawString(left + label_col_width + 8, y, value)
+        display_value = shorten_to_width(value, value_max_width)
+        c.drawString(left + label_col_width + 8, y, display_value)
         y -= row_height
 
     # =================== 2) กล่องกลาง: รายละเอียด ===================
@@ -205,9 +236,7 @@ def generate_booking_pdf(booking_id):
     body_height = 230
     detail_height = first_row_height + body_height
 
-    # กรอบนอก
     c.rect(left, detail_top - detail_height, table_width, detail_height)
-    # เส้นแนวตั้ง ซ้าย/ขวา
     c.line(
         left + label_col_width,
         detail_top,
@@ -215,43 +244,44 @@ def generate_booking_pdf(booking_id):
         detail_top - detail_height,
     )
 
-    # ข้อความ "รายละเอียด"
     label_y = detail_top - first_row_height + 7
     c.drawString(left + 5, label_y, "รายละเอียด")
 
-    # ข้อความรายละเอียด
     detail_text = booking.detail or ""
+    wrapped_lines = wrap_text(detail_text)
+
     text_obj = c.beginText()
-    text_obj.setFont("THSarabun", 16)
+    text_obj.setFont(font_name, font_size)
     text_obj.setTextOrigin(left + label_col_width + 8, label_y)
 
     max_body_bottom = detail_top - detail_height + 10
-    for line in detail_text.split("\n"):
+    for line in wrapped_lines:
         if text_obj.getY() < max_body_bottom:
             break
         text_obj.textLine(line)
 
     c.drawText(text_obj)
 
-    # =================== 3) กล่องล่าง: หน่วยงาน / อาคาร / ชั้น / ชื่อผู้ติดต่อ / เบอร์โทร ===================
+    # =================== 3) กล่องล่าง ===================
 
     bottom_top = detail_top - detail_height - 40
-    bottom_rows = 5
+
+    # ➤ ให้ยังคงสูง 6 แถว (เพื่อรองรับ 2 บรรทัดของหน่วยงาน)
+    bottom_rows = 6
     bottom_height = bottom_rows * row_height
 
-    # กรอบนอก
+    # วาดกรอบนอก
     c.rect(left, bottom_top - bottom_height, table_width, bottom_height)
-    # เส้นแบ่งแนวตั้ง label / value
-    c.line(
-        left + label_col_width,
-        bottom_top,
-        left + label_col_width,
-        bottom_top - bottom_height,
-    )
-    # เส้นแนวนอนคั่นแต่ละบรรทัด
+
+    # วาดเส้นแนวตั้ง
+    c.line(left + label_col_width, bottom_top, left + label_col_width, bottom_top - bottom_height)
+
+    # 🔥 วาดเส้นแนวนอน โดย "ข้าม" เส้นของแถวที่ 1
     for i in range(1, bottom_rows):
-        y = bottom_top - i * row_height
-        c.line(left, y, right, y)
+        if i == 1:  # ❗ ไม่วาดเส้นแบ่งหน่วยงานบรรทัด 1–2
+            continue
+        y_line = bottom_top - i * row_height
+        c.line(left, y_line, right, y_line)
 
     labels_bottom = ["หน่วยงาน", "อาคาร", "ชั้น", "ชื่อผู้ติดต่อ", "เบอร์โทร"]
     values_bottom = [
@@ -263,22 +293,35 @@ def generate_booking_pdf(booking_id):
     ]
 
     y = bottom_top - row_height + 7
-    for label, value in zip(labels_bottom, values_bottom):
+
+    for idx, (label, value) in enumerate(zip(labels_bottom, values_bottom)):
+
         c.drawString(left + 5, y, label)
-        c.drawString(left + label_col_width + 8, y, value)
-        y -= row_height
+
+        # ================= หน่วยงาน 2 บรรทัด + ไม่มีเส้นคั่น =================
+        if label == "หน่วยงาน":
+            lines = wrap_text(value)[:2]
+            text = c.beginText()
+            text.setFont(font_name, font_size)
+            text.setTextOrigin(left + label_col_width + 8, y)
+            for ln in lines:
+                text.textLine(ln)
+            c.drawText(text)
+
+            y -= (row_height * 2)  # กิน 2 บรรทัด
+        else:
+            display_value = shorten_to_width(value, value_max_width)
+            c.drawString(left + label_col_width + 8, y, display_value)
+            y -= row_height
 
     # =================== 4) ส่วนลายเซ็น ===================
 
     sign_y = bottom_top - bottom_height - 50
 
-    # ผู้รับ
     c.drawString(70, sign_y + 25, "ผู้รับ ________________________________")
     c.drawString(100, sign_y, "วันที่ _____ / _____ / ________")
 
-    # ผู้ส่ง + Messenger name (ถ้ามี)
     c.drawString(350, sign_y + 25, "ผู้ส่ง ________________________________")
-    # ถ้ามีชื่อ messenger ให้เขียนใต้เส้นลายเซ็น
     c.drawString(380, sign_y, "วันที่ _____ / _____ / ________")
 
     # =================== ปิดหน้า/ส่งไฟล์ ===================
