@@ -24,7 +24,7 @@ export default function ReportPage() {
     status: null,
   });
 
-  // ---------------- Helper for parameters ----------------
+  // ---------------- Helper: Build request parameters ----------------
   const buildParams = (currentFilters) => {
     const params = {};
     const { dateRange, status } = currentFilters;
@@ -39,20 +39,19 @@ export default function ReportPage() {
     return params;
   };
 
-  // ---------------- แปลงเวลาเป็น “ช่วงเช้า/ช่วงบ่าย” ----------------
+  // ---------------- Convert time to AM/PM Label ----------------
   const renderTimeLabel = (timeStr) => {
     if (!timeStr) return "";
 
-    const t = String(timeStr); // เผื่อ backend ส่งมาเป็น 11:59, 11:59:59 ฯลฯ
+    const t = String(timeStr);
+    if (t.startsWith("11:59")) return "Morning";
+    if (t.startsWith("16:29")) return "Afternoon";
+    if (t.startsWith("00:00")) return "Not Specific"
 
-    if (t.startsWith("11:59")) return "ช่วงเช้า";
-    if (t.startsWith("16:29")) return "ช่วงบ่าย";
-
-    // เวลาอื่น แสดงเป็น HH:MM ปกติ
     return t.length >= 5 ? t.slice(0, 5) : t;
   };
 
-  // ---------------- Fetch data from backend ----------------
+  // ---------------- Fetch report data ----------------
   const fetchReport = async (currentFilters = filters) => {
     setLoading(true);
     try {
@@ -63,19 +62,18 @@ export default function ReportPage() {
       setData(res.data);
     } catch (err) {
       console.error(err);
-      message.error("โหลดรายงานไม่สำเร็จ");
+      message.error("Failed to load report");
     } finally {
       setLoading(false);
     }
   };
 
-  // โหลดข้อมูลทันทีเมื่อเข้าหน้านี้
+  // Load on first enter
   useEffect(() => {
     fetchReport();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // ---------------- When clicking Search ----------------
+  // ---------------- Search ----------------
   const handleSearch = () => {
     fetchReport(filters);
   };
@@ -102,90 +100,84 @@ export default function ReportPage() {
       });
 
       const link = document.createElement("a");
-      const fileNameBase = `messenger_report_${dayjs().format("YYYY-MM-DD")}`;
-
       link.href = window.URL.createObjectURL(blob);
-      link.download =
-        type === "pdf" ? `${fileNameBase}.pdf` : `${fileNameBase}.xlsx`;
+      link.download = `messenger_report_${dayjs().format("YYYY-MM-DD")}.${type}`;
       link.click();
+
       window.URL.revokeObjectURL(link.href);
     } catch (err) {
       console.error(err);
-      message.error(`ส่งออก ${type.toUpperCase()} ไม่สำเร็จ`);
+      message.error(`Export ${type.toUpperCase()} failed`);
     } finally {
       setExporting(false);
     }
   };
 
-  // ---------------- สร้าง filter options จาก data (สำหรับ column filter) ----------------
+  // ---------------- Filters ----------------
   const companyFilters = Array.from(
-    new Set(
-      (data || [])
-        .map((d) => d.company_name)
-        .filter((v) => v && v.trim() !== "")
-    )
+    new Set((data || []).map((d) => d.company_name).filter((v) => v))
   ).map((v) => ({ text: v, value: v }));
 
   const statusFilters = [
-    { text: "รอดำเนินการ", value: "PENDING" },
-    { text: "สำเร็จ", value: "SUCCESS" },
-    { text: "ยกเลิก", value: "CANCEL" },
+    { text: "Pending", value: "PENDING" },
+    { text: "Success", value: "SUCCESS" },
+    { text: "Cancelled", value: "CANCEL" },
   ];
 
   // ---------------- Table Columns ----------------
   const columns = [
     {
-      title: "วันที่",
+      title: "Date",
       dataIndex: "booking_date",
       sorter: (a, b) => a.booking_date.localeCompare(b.booking_date),
     },
     {
-      title: "เวลา",
+      title: "Time",
       dataIndex: "booking_time",
       sorter: (a, b) =>
         String(a.booking_time || "").localeCompare(String(b.booking_time || "")),
       render: (time) => renderTimeLabel(time),
     },
     {
-      title: "บริษัท",
+      title: "Company",
       dataIndex: "company_name",
       filters: companyFilters,
       onFilter: (value, record) => record.company_name === value,
     },
     {
-      title: "ผู้แจ้ง",
+      title: "Requester",
       dataIndex: "requester_name",
     },
     {
-      title: "ประเภทงาน",
+      title: "Job Type",
       dataIndex: "job_type",
     },
     {
-      title: "หน่วยงาน",
+      title: "Department",
       dataIndex: "department",
     },
     {
-      title: "รายละเอียด",
+      title: "Details",
       dataIndex: "detail",
       render: (text) => <div style={{ whiteSpace: "pre-wrap" }}>{text}</div>,
     },
     {
-      title: "ผู้ติดต่อ",
+      title: "Contact Person",
       dataIndex: "contact_name",
     },
     {
-      title: "เบอร์โทร",
+      title: "Phone",
       dataIndex: "contact_phone",
     },
     {
-      title: "สถานะ",
+      title: "Status",
       dataIndex: "status",
       filters: statusFilters,
       onFilter: (value, record) => record.status === value,
       render: (status) => {
-        if (status === "SUCCESS") return "สำเร็จ";
-        if (status === "PENDING") return "รอดำเนินการ";
-        if (status === "CANCEL") return "ยกเลิก";
+        if (status === "SUCCESS") return "Success";
+        if (status === "PENDING") return "Pending";
+        if (status === "CANCEL") return "Cancelled";
         return status;
       },
     },
@@ -193,7 +185,7 @@ export default function ReportPage() {
 
   return (
     <Card
-      title="รายงานการใช้งาน Messenger"
+      title="Messenger Report"
       extra={
         <Space>
           <Button
@@ -213,35 +205,29 @@ export default function ReportPage() {
         </Space>
       }
     >
-      {/* Filter Bar */}
+      {/* Filter bar */}
       <Space style={{ marginBottom: 16 }} wrap>
-        <span>ช่วงวันที่:</span>
+        <span>Date Range:</span>
         <RangePicker
           value={filters.dateRange}
           onChange={(v) =>
-            setFilters((prev) => ({
-              ...prev,
-              dateRange: v,
-            }))
+            setFilters((prev) => ({ ...prev, dateRange: v }))
           }
         />
 
-        <span>สถานะ:</span>
+        <span>Status:</span>
         <Select
           style={{ width: 160 }}
-          placeholder="เลือกสถานะ"
+          placeholder="Select status"
           allowClear
           value={filters.status}
           onChange={(v) =>
-            setFilters((prev) => ({
-              ...prev,
-              status: v,
-            }))
+            setFilters((prev) => ({ ...prev, status: v }))
           }
           options={[
-            { value: "PENDING", label: "รอดำเนินการ" },
-            { value: "SUCCESS", label: "สำเร็จ" },
-            { value: "CANCEL", label: "ยกเลิก" },
+            { value: "PENDING", label: "Pending" },
+            { value: "SUCCESS", label: "Success" },
+            { value: "CANCEL", label: "Cancelled" },
           ]}
         />
 
@@ -251,7 +237,7 @@ export default function ReportPage() {
           onClick={handleSearch}
           loading={loading}
         >
-          ค้นหา
+          Search
         </Button>
       </Space>
 

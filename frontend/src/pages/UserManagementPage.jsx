@@ -1,5 +1,3 @@
-// src/pages/UserManagementPage.jsx
-
 import React, { useEffect, useState } from "react";
 import {
   Card,
@@ -30,7 +28,7 @@ export default function UserManagementPage() {
   const [loading, setLoading] = useState(false);
 
   const [formVisible, setFormVisible] = useState(false);
-  const [formMode, setFormMode] = useState("create"); // 'create' | 'edit'
+  const [formMode, setFormMode] = useState("create"); // create | edit
   const [editingUser, setEditingUser] = useState(null);
   const [form] = Form.useForm();
 
@@ -38,7 +36,7 @@ export default function UserManagementPage() {
   const [pwdForm] = Form.useForm();
   const [pwdUser, setPwdUser] = useState(null);
 
-  // ---------- โหลด users ---------- //
+  // -------- Fetch Users -------- //
   const fetchUsers = async () => {
     setLoading(true);
     try {
@@ -46,7 +44,7 @@ export default function UserManagementPage() {
       setUsers(res.data);
     } catch (err) {
       console.error(err);
-      message.error("โหลดข้อมูลผู้ใช้ไม่สำเร็จ");
+      message.error("Failed to load users");
     } finally {
       setLoading(false);
     }
@@ -56,7 +54,7 @@ export default function UserManagementPage() {
     fetchUsers();
   }, []);
 
-  // ---------- เปิดฟอร์มเพิ่ม ---------- //
+  // -------- Create user modal -------- //
   const openCreateModal = () => {
     setFormMode("create");
     setEditingUser(null);
@@ -69,7 +67,7 @@ export default function UserManagementPage() {
     setFormVisible(true);
   };
 
-  // ---------- เปิดฟอร์มแก้ไข ---------- //
+  // -------- Edit user modal -------- //
   const openEditModal = (record) => {
     setFormMode("edit");
     setEditingUser(record);
@@ -86,15 +84,14 @@ export default function UserManagementPage() {
     setFormVisible(true);
   };
 
-  // ---------- submit ฟอร์ม create / edit ---------- //
+  // -------- Submit Create/Edit -------- //
   const handleSubmitForm = async () => {
     try {
       const values = await form.validateFields();
 
       if (formMode === "create") {
-        // create user: ต้องมี password
         if (!values.password) {
-          message.error("กรุณากรอกรหัสผ่าน");
+          message.error("Password is required");
           return;
         }
         await http.post("/admin/users", {
@@ -107,7 +104,8 @@ export default function UserManagementPage() {
           email: values.email || null,
           phone: values.phone || null,
         });
-        message.success("สร้างผู้ใช้สำเร็จ");
+        message.success("User created successfully");
+
       } else if (formMode === "edit" && editingUser) {
         await http.put(`/admin/users/${editingUser.id}`, {
           username: values.username,
@@ -118,34 +116,32 @@ export default function UserManagementPage() {
           email: values.email || null,
           phone: values.phone || null,
         });
-        message.success("แก้ไขผู้ใช้สำเร็จ");
+        message.success("User updated successfully");
       }
 
       setFormVisible(false);
       fetchUsers();
+
     } catch (err) {
-      if (err?.errorFields) {
-        // validation error ของ antd form
-        return;
-      }
+      if (err?.errorFields) return;
       console.error(err);
-      message.error("บันทึกข้อมูลผู้ใช้ไม่สำเร็จ");
+      message.error("Failed to save user");
     }
   };
 
-  // ---------- ลบผู้ใช้ ---------- //
+  // -------- Delete user -------- //
   const handleDelete = async (record) => {
     try {
       await http.delete(`/admin/users/${record.id}`);
-      message.success("ลบผู้ใช้สำเร็จ");
+      message.success("User deleted successfully");
       fetchUsers();
     } catch (err) {
       console.error(err);
-      message.error("ลบผู้ใช้ไม่สำเร็จ");
+      message.error("Failed to delete user");
     }
   };
 
-  // ---------- เปิด modal reset password ---------- //
+  // -------- Reset password modal -------- //
   const openResetPasswordModal = (record) => {
     setPwdUser(record);
     pwdForm.resetFields();
@@ -158,74 +154,61 @@ export default function UserManagementPage() {
       await http.post(`/admin/users/${pwdUser.id}/reset_password`, {
         password: values.password,
       });
-      message.success("เปลี่ยนรหัสผ่านสำเร็จ");
+      message.success("Password updated successfully");
       setPwdVisible(false);
     } catch (err) {
       if (err?.errorFields) return;
       console.error(err);
-      message.error("เปลี่ยนรหัสผ่านไม่สำเร็จ");
+      message.error("Failed to update password");
     }
   };
 
   const columns = [
     { title: "Username", dataIndex: "username" },
-    { title: "ชื่อ-นามสกุล", dataIndex: "full_name" },
+    { title: "Full Name", dataIndex: "full_name" },
     { title: "Email", dataIndex: "email" },
-    { title: "เบอร์โทร", dataIndex: "phone" },
+    { title: "Phone", dataIndex: "phone" },
     {
       title: "Role",
       dataIndex: "role",
       render: (role) =>
-        role === "ADMIN" ? (
-          <Tag color="red">ADMIN</Tag>
-        ) : (
-          <Tag color="blue">USER</Tag>
-        ),
+        role === "ADMIN" ? <Tag color="red">ADMIN</Tag> : <Tag color="blue">USER</Tag>,
     },
     {
       title: "Approver",
       dataIndex: "is_approver",
-      render: (v) =>
-        v ? <Tag color="purple">YES</Tag> : <Tag color="default">NO</Tag>,
+      render: (v) => (v ? <Tag color="purple">YES</Tag> : <Tag>NO</Tag>),
     },
     {
-      title: "สถานะ",
+      title: "Status",
       dataIndex: "is_active",
       render: (active) => (
         <Tag color={active ? "green" : "volcano"}>
-          {active ? "ใช้งาน" : "ปิดการใช้งาน"}
+          {active ? "Active" : "Disabled"}
         </Tag>
       ),
     },
     {
-      title: "จัดการ",
+      title: "Actions",
       render: (_, record) => (
         <Space>
-          <Button
-            size="small"
-            icon={<EditOutlined />}
-            onClick={() => openEditModal(record)}
-          >
-            แก้ไข
+          <Button size="small" icon={<EditOutlined />} onClick={() => openEditModal(record)}>
+            Edit
           </Button>
 
           <Popconfirm
-            title="ยืนยันลบผู้ใช้?"
+            title="Confirm delete this user?"
             onConfirm={() => handleDelete(record)}
-            okText="ลบ"
-            cancelText="ยกเลิก"
+            okText="Delete"
+            cancelText="Cancel"
           >
             <Button size="small" danger icon={<DeleteOutlined />}>
-              ลบ
+              Delete
             </Button>
           </Popconfirm>
 
-          <Button
-            size="small"
-            icon={<KeyOutlined />}
-            onClick={() => openResetPasswordModal(record)}
-          >
-            รีเซ็ตรหัสผ่าน
+          <Button size="small" icon={<KeyOutlined />} onClick={() => openResetPasswordModal(record)}>
+            Reset Password
           </Button>
         </Space>
       ),
@@ -234,109 +217,66 @@ export default function UserManagementPage() {
 
   return (
     <Card
-      title="จัดการผู้ใช้"
+      title="User Management"
       extra={
         <Button type="primary" icon={<PlusOutlined />} onClick={openCreateModal}>
-          เพิ่มผู้ใช้
+          Add User
         </Button>
       }
     >
       <Table rowKey="id" dataSource={users} columns={columns} loading={loading} />
 
-      {/* Modal เพิ่ม/แก้ไขผู้ใช้ */}
+      {/* Create/Edit User Modal */}
       <Modal
         open={formVisible}
-        title={formMode === "create" ? "เพิ่มผู้ใช้" : "แก้ไขผู้ใช้"}
+        title={formMode === "create" ? "Create User" : "Edit User"}
         onOk={handleSubmitForm}
         onCancel={() => setFormVisible(false)}
-        okText="บันทึก"
-        cancelText="ยกเลิก"
+        okText="Save"
+        cancelText="Cancel"
         destroyOnClose
       >
         <Form form={form} layout="vertical">
-          <Form.Item
-            label="Username"
-            name="username"
-            rules={[{ required: true, message: "กรุณากรอก username" }]}
-          >
-            <Input />
-          </Form.Item>
+          <Form.Item label="Username" name="username" rules={[{ required: true }]}><Input /></Form.Item>
+          <Form.Item label="Full Name" name="full_name" rules={[{ required: true }]}><Input /></Form.Item>
+          <Form.Item label="Email" name="email"><Input type="email" /></Form.Item>
+          <Form.Item label="Phone" name="phone"><Input /></Form.Item>
 
-          <Form.Item
-            label="ชื่อ-นามสกุล"
-            name="full_name"
-            rules={[{ required: true, message: "กรุณากรอกชื่อ-นามสกุล" }]}
-          >
-            <Input />
-          </Form.Item>
-
-          <Form.Item label="Email" name="email">
-            <Input type="email" />
-          </Form.Item>
-
-          <Form.Item label="เบอร์โทร" name="phone">
-            <Input />
-          </Form.Item>
-
-          <Form.Item
-            label="Role"
-            name="role"
-            rules={[{ required: true, message: "กรุณาเลือก role" }]}
-          >
+          <Form.Item label="Role" name="role" rules={[{ required: true }]}>
             <Select>
               <Option value="ADMIN">ADMIN</Option>
               <Option value="USER">USER</Option>
             </Select>
           </Form.Item>
 
-          <Form.Item
-            label="Approver"
-            name="is_approver"
-            valuePropName="checked"
-          >
+          <Form.Item label="Approver" name="is_approver" valuePropName="checked">
             <Switch />
           </Form.Item>
 
-          <Form.Item
-            label="สถานะการใช้งาน"
-            name="is_active"
-            valuePropName="checked"
-          >
+          <Form.Item label="Active Status" name="is_active" valuePropName="checked">
             <Switch />
           </Form.Item>
 
           {formMode === "create" && (
-            <Form.Item
-              label="รหัสผ่านเริ่มต้น"
-              name="password"
-              rules={[{ required: true, message: "กรุณากรอกรหัสผ่าน" }]}
-            >
+            <Form.Item label="Initial Password" name="password" rules={[{ required: true }]}>
               <Input.Password />
             </Form.Item>
           )}
         </Form>
       </Modal>
 
-      {/* Modal reset password */}
+      {/* Reset Password Modal */}
       <Modal
         open={pwdVisible}
-        title={
-          pwdUser
-            ? `เปลี่ยนรหัสผ่าน: ${pwdUser.username}`
-            : "เปลี่ยนรหัสผ่าน"
-        }
+        title={pwdUser ? `Reset Password: ${pwdUser.username}` : "Reset Password"}
         onOk={handleResetPassword}
         onCancel={() => setPwdVisible(false)}
-        okText="บันทึก"
-        cancelText="ยกเลิก"
+        okText="Save"
+        cancelText="Cancel"
         destroyOnClose
       >
         <Form form={pwdForm} layout="vertical">
-          <Form.Item
-            label="รหัสผ่านใหม่"
-            name="password"
-            rules={[{ required: true, message: "กรุณากรอกรหัสผ่านใหม่" }]}
-          >
+          <Form.Item label="New Password" name="password" rules={[{ required: true }]}>
             <Input.Password />
           </Form.Item>
         </Form>

@@ -19,7 +19,7 @@ const { Option } = Select;
 
 export default function BookingForm() {
   const [companies, setCompanies] = useState([]);
-  const [timeMode, setTimeMode] = useState("morning"); // morning | afternoon | custom
+  const [timeMode, setTimeMode] = useState("morning"); // morning | afternoon | custom | none
   const [loadingCompanies, setLoadingCompanies] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [form] = Form.useForm();
@@ -45,19 +45,23 @@ export default function BookingForm() {
     setSubmitting(true);
 
     try {
-      // ---- map time mode -> string HH:mm ----
+      // ---- map time mode -> string HH:mm:ss ----
       let booking_time = "11:59:59"; // default — morning
 
       if (timeMode === "afternoon") {
         booking_time = "16:29:59";
       } else if (timeMode === "custom" && values.booking_time) {
-        booking_time = values.booking_time.format("HH:mm");
+        // ใช้เวลาที่เลือกจาก TimePicker (เติมวินาทีเป็น :00)
+        booking_time = values.booking_time.format("HH:mm") + ":00";
+      } else if (timeMode === "none") {
+        // ไม่ระบุเวลา → ใช้ 00:00:00
+        booking_time = "00:00:00";
       }
 
       const payload = {
         company_id: values.company_id,
         booking_date: values.booking_date.format("YYYY-MM-DD"),
-        booking_time, // 👉 ส่งเป็น HH:mm
+        booking_time, // 👉 ส่งเป็น HH:mm:ss
         requester_name: values.requester_name,
         job_type: values.job_type,
         detail: values.detail,
@@ -135,6 +139,7 @@ export default function BookingForm() {
               <Radio value="morning">เช้า</Radio>
               <Radio value="afternoon">บ่าย</Radio>
               <Radio value="custom">ระบุเวลา</Radio>
+              <Radio value="none">ไม่ระบุเวลา</Radio>
             </Radio.Group>
           </Form.Item>
 
@@ -147,7 +152,7 @@ export default function BookingForm() {
               rules={[{ required: true, message: "Please select time" }]}
             >
               <TimePicker
-                format="HH:mm"          // ✅ ไม่มีวินาทีแล้ว
+                format="HH:mm" // ไม่มีวินาที
                 style={{ width: "100%" }}
               />
             </Form.Item>

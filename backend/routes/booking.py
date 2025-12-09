@@ -227,6 +227,8 @@ def generate_booking_pdf(booking_id):
             period = "ช่วงเช้า"
         elif raw == "16:29:59":
             period = "ช่วงบ่าย"
+        elif raw == "00:00:00":
+            period = "ไม่ระบุเวลา"
         return f"{period}"
 
     # =================== 1) กล่องบน ===================
