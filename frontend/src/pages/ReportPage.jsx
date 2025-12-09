@@ -226,7 +226,7 @@ export default function ReportPage() {
           }
           options={[
             { value: "PENDING", label: "Pending" },
-            { value: "SUCCESS", label: "Success" },
+            { value: "SUCCESS", label: "Completed" },
             { value: "CANCEL", label: "Cancelled" },
           ]}
         />
