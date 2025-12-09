@@ -5,6 +5,7 @@ import {
   Select,
   DatePicker,
   TimePicker,
+  Radio,
   Button,
   Card,
   Space,
@@ -18,12 +19,14 @@ const { Option } = Select;
 
 export default function BookingForm() {
   const [companies, setCompanies] = useState([]);
+  const [timeMode, setTimeMode] = useState("morning"); // morning | afternoon | custom
   const [loadingCompanies, setLoadingCompanies] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [form] = Form.useForm();
 
+  // Load Companies
   useEffect(() => {
-    async function fetchCompanies() {
+    async function loadCompanies() {
       setLoadingCompanies(true);
       try {
         const res = await http.get("/bookings/companies");
@@ -34,67 +37,73 @@ export default function BookingForm() {
         setLoadingCompanies(false);
       }
     }
-    fetchCompanies();
+    loadCompanies();
   }, []);
 
+  // Submit Booking
   const onFinish = async (values) => {
     setSubmitting(true);
+
     try {
+      // ---- map time mode -> string HH:mm ----
+      let booking_time = "11:59:59"; // default — morning
+
+      if (timeMode === "afternoon") {
+        booking_time = "16:29:59";
+      } else if (timeMode === "custom" && values.booking_time) {
+        booking_time = values.booking_time.format("HH:mm");
+      }
+
       const payload = {
         company_id: values.company_id,
         booking_date: values.booking_date.format("YYYY-MM-DD"),
-        booking_time: values.booking_time.format("HH:mm"),
+        booking_time, // 👉 ส่งเป็น HH:mm
         requester_name: values.requester_name,
         job_type: values.job_type,
         detail: values.detail,
         department: values.department,
-        building: values.building || "",  // ✅ ว่างได้
-        floor: values.floor || "",        // ✅ ว่างได้
+        building: values.building || "",
+        floor: values.floor || "",
         contact_name: values.contact_name,
         contact_phone: values.contact_phone,
       };
 
       const res = await http.post("/bookings", payload);
       const bookingId = res.data.booking_id;
-      if (!bookingId) {
-        message.error("ไม่พบ booking_id จาก backend");
-        return;
-      }
 
-      message.success("บันทึกสำเร็จ! กำลังดาวน์โหลดใบจอง...");
-
+      // Download PDF
       const pdfRes = await http.get(`/bookings/${bookingId}/pdf`, {
         responseType: "blob",
       });
-
-      const blob = new Blob([pdfRes.data], { type: "application/pdf" });
-      const url = window.URL.createObjectURL(blob);
-
-      const link = document.createElement("a");
-      link.href = url;
-      link.download = `booking_${bookingId}.pdf`;
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
-      window.URL.revokeObjectURL(url);
+      const url = URL.createObjectURL(
+        new Blob([pdfRes.data], { type: "application/pdf" })
+      );
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `booking_${bookingId}.pdf`;
+      a.click();
+      URL.revokeObjectURL(url);
 
       form.resetFields();
+      setTimeMode("morning");
+      message.success("Booking saved successfully ✔");
     } catch (err) {
       console.error(err);
-      message.error("บันทึกไม่สำเร็จ");
+      message.error("Failed to save booking");
     } finally {
       setSubmitting(false);
     }
   };
 
   return (
-    <Card title="ฟอร์มจอง Messenger">
+    <Card title="Messenger Booking Form">
       <Form
         layout="vertical"
         form={form}
         onFinish={onFinish}
         initialValues={{ booking_date: dayjs() }}
       >
+        {/* Company */}
         <Form.Item
           label="Company"
           name="company_id"
@@ -107,9 +116,10 @@ export default function BookingForm() {
           />
         </Form.Item>
 
+        {/* Date + Time Mode */}
         <Space style={{ width: "100%" }} size="large">
           <Form.Item
-            label="Booking date"
+            label="Booking Date"
             name="booking_date"
             style={{ flex: 1 }}
             rules={[{ required: true, message: "Please choose date" }]}
@@ -117,14 +127,31 @@ export default function BookingForm() {
             <DatePicker style={{ width: "100%" }} format="YYYY-MM-DD" />
           </Form.Item>
 
-          <Form.Item
-            label="Booking time"
-            name="booking_time"
-            style={{ flex: 1 }}
-            rules={[{ required: true, message: "Please choose time" }]}
-          >
-            <TimePicker format="HH:mm" style={{ width: "100%" }} />
+          <Form.Item label="Time Type" style={{ flex: 1 }}>
+            <Radio.Group
+              value={timeMode}
+              onChange={(e) => setTimeMode(e.target.value)}
+            >
+              <Radio value="morning">เช้า</Radio>
+              <Radio value="afternoon">บ่าย</Radio>
+              <Radio value="custom">ระบุเวลา</Radio>
+            </Radio.Group>
           </Form.Item>
+
+          {/* TimePicker แสดงเฉพาะตอนเลือก custom */}
+          {timeMode === "custom" && (
+            <Form.Item
+              label="Select time"
+              name="booking_time"
+              style={{ flex: 1 }}
+              rules={[{ required: true, message: "Please select time" }]}
+            >
+              <TimePicker
+                format="HH:mm"          // ✅ ไม่มีวินาทีแล้ว
+                style={{ width: "100%" }}
+              />
+            </Form.Item>
+          )}
         </Space>
 
         <Form.Item
@@ -154,7 +181,9 @@ export default function BookingForm() {
         <Form.Item
           label="Description"
           name="detail"
-          rules={[{ required: true, message: "Please input your description" }]}
+          rules={[
+            { required: true, message: "Please input your description" },
+          ]}
         >
           <TextArea rows={4} />
         </Form.Item>
@@ -164,26 +193,18 @@ export default function BookingForm() {
             label="Customer name"
             name="department"
             style={{ flex: 1 }}
-            rules={[{ required: true, message: "Please input customer name" }]}
+            rules={[
+              { required: true, message: "Please input customer name" },
+            ]}
           >
             <Input />
           </Form.Item>
 
-          <Form.Item
-            label="Building"
-            name="building"
-            style={{ flex: 1 }}
-            rules={[]}
-          >
+          <Form.Item label="Building" name="building" style={{ flex: 1 }}>
             <Input />
           </Form.Item>
 
-          <Form.Item
-            label="Floor"
-            name="floor"
-            style={{ flex: 1 }}
-            rules={[]}
-          >
+          <Form.Item label="Floor" name="floor" style={{ flex: 1 }}>
             <Input />
           </Form.Item>
         </Space>
@@ -193,7 +214,9 @@ export default function BookingForm() {
             label="Contact name"
             name="contact_name"
             style={{ flex: 1 }}
-            rules={[{ required: true, message: "Please input contact name" }]}
+            rules={[
+              { required: true, message: "Please input contact name" },
+            ]}
           >
             <Input />
           </Form.Item>
@@ -202,17 +225,17 @@ export default function BookingForm() {
             label="Telephone"
             name="contact_phone"
             style={{ flex: 1 }}
-            rules={[{ required: true, message: "Please input telephone" }]}
+            rules={[
+              { required: true, message: "Please input telephone" },
+            ]}
           >
             <Input />
           </Form.Item>
         </Space>
 
-        <Form.Item>
-          <Button type="primary" htmlType="submit" loading={submitting}>
-            Submit & Print
-          </Button>
-        </Form.Item>
+        <Button type="primary" htmlType="submit" loading={submitting} block>
+          Submit & Print
+        </Button>
       </Form>
     </Card>
   );

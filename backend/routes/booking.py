@@ -19,7 +19,18 @@ def parse_date(date_str: str):
 
 
 def parse_time(time_str: str):
-    return datetime.strptime(time_str, "%H:%M").time()
+    """
+    รองรับทั้งรูปแบบเวลา:
+      - HH:MM:SS   เช่น 11:59:59, 16:29:59
+      - HH:MM      เผื่อในอนาคตส่งมาแค่ชั่วโมง:นาที
+    """
+    for fmt in ("%H:%M:%S", "%H:%M"):
+        try:
+            return datetime.strptime(time_str, fmt).time()
+        except ValueError:
+            continue
+    # ถ้าไม่มี format ไหน match เลยให้ throw error ออกไป
+    raise ValueError(f"Invalid time format: {time_str}")
 
 
 # ---------------- Companies list ---------------- #
@@ -60,8 +71,7 @@ def create_booking():
         "job_type",
         "detail",
         "department",
-        #"building",
-        #"floor",
+        # building / floor ไม่บังคับแล้ว
         "contact_name",
         "contact_phone",
     ]
@@ -73,16 +83,21 @@ def create_booking():
     if not company:
         return jsonify({"message": "company not found"}), 404
 
+    try:
+        booking_time_obj = parse_time(data["booking_time"])
+    except ValueError as e:
+        return jsonify({"message": str(e)}), 400
+
     booking = Booking(
         company_id=company.id,
         booking_date=parse_date(data["booking_date"]),
-        booking_time=parse_time(data["booking_time"]),
+        booking_time=booking_time_obj,
         requester_name=data["requester_name"],
         job_type=data["job_type"],
         detail=data["detail"],
         department=data["department"],
-        building=data["building"],
-        floor=data["floor"],
+        building=data.get("building") or "",
+        floor=data.get("floor") or "",
         contact_name=data["contact_name"],
         contact_phone=data["contact_phone"],
         status="PENDING",
@@ -201,8 +216,21 @@ def generate_booking_pdf(booking_id):
                 lines.append(current)
         return lines
 
+    # ---------- helper: format เวลา + ช่วงเช้า/บ่าย ---------- #
+    def format_booking_time(t) -> str:
+        if not t:
+            return ""
+        raw = t.strftime("%H:%M:%S")  # ใช้เช็กช่วงเวลา
+        base = t.strftime("%H:%M")    # ใช้แสดงผล (ไม่เอาวินาที)
+        period = ""
+        if raw == "11:59:59":
+            period = "ช่วงเช้า"
+        elif raw == "16:29:59":
+            period = "ช่วงบ่าย"
+        return f"{period}"
+
     # =================== 1) กล่องบน ===================
-    top_box_rows = 6
+    top_box_rows = 6  # เดิม 5 เพิ่มแถว Messenger
     top_box_height = top_box_rows * row_height
 
     c.rect(left, top - top_box_height, table_width, top_box_height)
@@ -215,7 +243,7 @@ def generate_booking_pdf(booking_id):
     values_top = [
         company.name or "",
         booking.booking_date.strftime("%d/%m/%Y") if booking.booking_date else "",
-        booking.booking_time.strftime("%H:%M น.") if booking.booking_time else "",
+        format_booking_time(booking.booking_time),
         booking.requester_name or "",
         booking.job_type or "",
         booking.messenger_name or "",
@@ -229,7 +257,6 @@ def generate_booking_pdf(booking_id):
         y -= row_height
 
     # =================== 2) กล่องกลาง: รายละเอียด ===================
-
     detail_top = top - top_box_height - 40
 
     first_row_height = row_height
@@ -263,25 +290,20 @@ def generate_booking_pdf(booking_id):
     c.drawText(text_obj)
 
     # =================== 3) กล่องล่าง ===================
-
     bottom_top = detail_top - detail_height - 40
-
-    # ➤ ให้ยังคงสูง 6 แถว (เพื่อรองรับ 2 บรรทัดของหน่วยงาน)
-    bottom_rows = 6
+    bottom_rows = 5
     bottom_height = bottom_rows * row_height
 
-    # วาดกรอบนอก
     c.rect(left, bottom_top - bottom_height, table_width, bottom_height)
-
-    # วาดเส้นแนวตั้ง
-    c.line(left + label_col_width, bottom_top, left + label_col_width, bottom_top - bottom_height)
-
-    # 🔥 วาดเส้นแนวนอน โดย "ข้าม" เส้นของแถวที่ 1
+    c.line(
+        left + label_col_width,
+        bottom_top,
+        left + label_col_width,
+        bottom_top - bottom_height,
+    )
     for i in range(1, bottom_rows):
-        if i == 1:  # ❗ ไม่วาดเส้นแบ่งหน่วยงานบรรทัด 1–2
-            continue
-        y_line = bottom_top - i * row_height
-        c.line(left, y_line, right, y_line)
+        y = bottom_top - i * row_height
+        c.line(left, y, right, y)
 
     labels_bottom = ["หน่วยงาน", "อาคาร", "ชั้น", "ชื่อผู้ติดต่อ", "เบอร์โทร"]
     values_bottom = [
@@ -294,28 +316,24 @@ def generate_booking_pdf(booking_id):
 
     y = bottom_top - row_height + 7
 
-    for idx, (label, value) in enumerate(zip(labels_bottom, values_bottom)):
-
+    for label, value in zip(labels_bottom, values_bottom):
         c.drawString(left + 5, y, label)
 
-        # ================= หน่วยงาน 2 บรรทัด + ไม่มีเส้นคั่น =================
         if label == "หน่วยงาน":
-            lines = wrap_text(value)[:2]
+            lines = wrap_text(value)[:2]  # จำกัด 2 บรรทัด
             text = c.beginText()
             text.setFont(font_name, font_size)
             text.setTextOrigin(left + label_col_width + 8, y)
             for ln in lines:
                 text.textLine(ln)
             c.drawText(text)
-
-            y -= (row_height * 2)  # กิน 2 บรรทัด
         else:
             display_value = shorten_to_width(value, value_max_width)
             c.drawString(left + label_col_width + 8, y, display_value)
-            y -= row_height
+
+        y -= row_height
 
     # =================== 4) ส่วนลายเซ็น ===================
-
     sign_y = bottom_top - bottom_height - 50
 
     c.drawString(70, sign_y + 25, "ผู้รับ ________________________________")
@@ -323,8 +341,6 @@ def generate_booking_pdf(booking_id):
 
     c.drawString(350, sign_y + 25, "ผู้ส่ง ________________________________")
     c.drawString(380, sign_y, "วันที่ _____ / _____ / ________")
-
-    # =================== ปิดหน้า/ส่งไฟล์ ===================
 
     c.showPage()
     c.save()

@@ -146,6 +146,20 @@ export default function MessengerSchedulePage() {
     },
   });
 
+  // 🔹 แปลงเวลาเป็นข้อความ "ช่วงเช้า / ช่วงบ่าย" หรือ HH:MM
+  const renderTimeLabel = (timeStr) => {
+    if (!timeStr) return "";
+
+    const t = String(timeStr); // กันไว้เผื่อเป็น object/Date
+
+    // ใน DB เป็น 11:59:59 / 16:29:59 แต่อาจ serialize ออกมาเป็น 11:59
+    if (t.startsWith("11:59")) return "ช่วงเช้า";
+    if (t.startsWith("16:29")) return "ช่วงบ่าย";
+
+    // นอกเหนือจากสองเวลานี้ แสดงเป็น HH:MM ปกติ
+    return t.length >= 5 ? t.slice(0, 5) : t;
+  };
+
   const columns = [
     {
       title: "Date",
@@ -158,6 +172,7 @@ export default function MessengerSchedulePage() {
       title: "Time",
       dataIndex: "booking_time",
       ...getColumnSearchProps("booking_time", "time"),
+      render: (time) => renderTimeLabel(time),
     },
     {
       title: "Company",
@@ -199,7 +214,7 @@ export default function MessengerSchedulePage() {
     // 🔹 Messenger column
     {
       title: "Messenger",
-      dataIndex: "messenger_name", // match backend field
+      dataIndex: "messenger_name",
       render: (_, record) => {
         if (record.status === "PENDING") {
           return (
@@ -212,7 +227,7 @@ export default function MessengerSchedulePage() {
                 }))
               }
               placeholder="Messenger name"
-              style={{ width: 80 }} // 🔻 ลดความกว้างลง
+              style={{ width: 80 }}
               size="small"
             />
           );

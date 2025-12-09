@@ -20,7 +20,6 @@ export default function ReportPage() {
   const [data, setData] = useState([]);
 
   const [filters, setFilters] = useState({
-    // default เป็นวันนี้ทั้งสองฝั่ง
     dateRange: [dayjs(), dayjs()],
     status: null,
   });
@@ -38,6 +37,19 @@ export default function ReportPage() {
       params.status = status;
     }
     return params;
+  };
+
+  // ---------------- แปลงเวลาเป็น “ช่วงเช้า/ช่วงบ่าย” ----------------
+  const renderTimeLabel = (timeStr) => {
+    if (!timeStr) return "";
+
+    const t = String(timeStr); // เผื่อ backend ส่งมาเป็น 11:59, 11:59:59 ฯลฯ
+
+    if (t.startsWith("11:59")) return "ช่วงเช้า";
+    if (t.startsWith("16:29")) return "ช่วงบ่าย";
+
+    // เวลาอื่น แสดงเป็น HH:MM ปกติ
+    return t.length >= 5 ? t.slice(0, 5) : t;
   };
 
   // ---------------- Fetch data from backend ----------------
@@ -60,7 +72,8 @@ export default function ReportPage() {
   // โหลดข้อมูลทันทีเมื่อเข้าหน้านี้
   useEffect(() => {
     fetchReport();
-  }, []); // ไม่มี eslint-disable แล้ว
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // ---------------- When clicking Search ----------------
   const handleSearch = () => {
@@ -129,7 +142,9 @@ export default function ReportPage() {
     {
       title: "เวลา",
       dataIndex: "booking_time",
-      sorter: (a, b) => a.booking_time.localeCompare(b.booking_time),
+      sorter: (a, b) =>
+        String(a.booking_time || "").localeCompare(String(b.booking_time || "")),
+      render: (time) => renderTimeLabel(time),
     },
     {
       title: "บริษัท",
@@ -198,7 +213,7 @@ export default function ReportPage() {
         </Space>
       }
     >
-      {/* Filter Bar (ยิงไป backend) */}
+      {/* Filter Bar */}
       <Space style={{ marginBottom: 16 }} wrap>
         <span>ช่วงวันที่:</span>
         <RangePicker
@@ -240,7 +255,6 @@ export default function ReportPage() {
         </Button>
       </Space>
 
-      {/* Table (มี column filter ที่บริษัท + สถานะ) */}
       <Table
         rowKey="id"
         dataSource={data}
