@@ -136,10 +136,10 @@ export default function BookingForm() {
               value={timeMode}
               onChange={(e) => setTimeMode(e.target.value)}
             >
-              <Radio value="morning">เช้า</Radio>
-              <Radio value="afternoon">บ่าย</Radio>
-              <Radio value="custom">ระบุเวลา</Radio>
-              <Radio value="none">ไม่ระบุเวลา</Radio>
+              <Radio value="morning">Morning</Radio>
+              <Radio value="afternoon">Afternoon</Radio>
+              <Radio value="custom">Specific</Radio>
+              <Radio value="none">Not Specific</Radio>
             </Radio.Group>
           </Form.Item>
 
