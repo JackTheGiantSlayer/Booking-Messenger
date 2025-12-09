@@ -1,6 +1,9 @@
 version: "3.9"
 
 services:
+  # =========================
+  # PostgreSQL Database
+  # =========================
   db:
     image: postgres:16
     container_name: messenger_db
@@ -12,27 +15,41 @@ services:
       - db_data:/var/lib/postgresql/data
     ports:
       - "5432:5432"
+    restart: unless-stopped
 
+  # =========================
+  # Flask Backend (API)
+  # =========================
   backend:
     build: ./backend
     container_name: messenger_backend
     environment:
+      # ใช้ database ใน container db
       DATABASE_URL: postgresql://messenger_user:messenger_pass@db:5432/messenger_db
       JWT_SECRET_KEY: CHANGE_ME_SECRET
+      # ถ้ามีตัวอื่นใน .env ก็ใส่เพิ่มได้
     depends_on:
       - db
     ports:
-      - "16000:16000"
+      - "16000:16000"      # ภายนอกเรียก http://<server-ip>:16000
+    restart: unless-stopped
 
+  # =========================
+  # React Frontend (build + nginx หรือ serve แบบที่ Dockerfile คุณกำหนด)
+  # =========================
   frontend:
     build: ./frontend
     container_name: messenger_frontend
     depends_on:
       - backend
     environment:
-      - REACT_APP_API_BASE_URL=http://localhost:6000
+      # ให้ React ใช้ API ของ backend ผ่าน IP/โดเมนของ server
+      # (อันนี้สำคัญ: browser จะไม่รู้จักชื่อ service "backend")
+      REACT_APP_API_BASE_URL: "http://192.168.200.230:16000"
+      # ถ้าคุณมีโดเมน ให้เปลี่ยนเป็น http://your-domain:16000 ได้
     ports:
-      - "80:80"
+      - "80:80"            # เปิดเว็บด้วย http://192.168.200.230
+    restart: unless-stopped
 
 volumes:
   db_data:
