@@ -175,7 +175,7 @@ export default function ReportPage() {
       filters: statusFilters,
       onFilter: (value, record) => record.status === value,
       render: (status) => {
-        if (status === "SUCCESS") return "Success";
+        if (status === "SUCCESS") return "Completed";
         if (status === "PENDING") return "Pending";
         if (status === "CANCEL") return "Cancelled";
         return status;
