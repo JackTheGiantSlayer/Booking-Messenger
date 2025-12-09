@@ -43,12 +43,10 @@ services:
     depends_on:
       - backend
     environment:
-      # ให้ React ใช้ API ของ backend ผ่าน IP/โดเมนของ server
-      # (อันนี้สำคัญ: browser จะไม่รู้จักชื่อ service "backend")
+
       REACT_APP_API_BASE_URL: "http://192.168.200.230:16000"
-      # ถ้าคุณมีโดเมน ให้เปลี่ยนเป็น http://your-domain:16000 ได้
     ports:
-      - "80:80"            # เปิดเว็บด้วย http://192.168.200.230
+      - "80:80"
     restart: unless-stopped
 
 volumes:

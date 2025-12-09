@@ -4,7 +4,6 @@
 import axios from "axios";
 
 // 🔥 รองรับ .env ถ้าไม่ตั้ง จะใช้ URL นี้แทน
-// เช่นกำหนดใน .env → REACT_APP_API_BASE_URL=http://192.168.200.55:16000
 const API_BASE_URL =
   process.env.REACT_APP_API_BASE_URL || "http://192.168.200.230:16000";
 
