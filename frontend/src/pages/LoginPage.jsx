@@ -24,130 +24,66 @@ export default function LoginPage({ onLoginSuccess }) {
       localStorage.setItem("access_token", res.data.access_token);
       localStorage.setItem("user", JSON.stringify(res.data.user));
 
-      message.success("Login successful");
-
-      if (onLoginSuccess) onLoginSuccess(res.data.user);
+      message.success("Login successful ✔");
+      onLoginSuccess?.(res.data.user);
 
     } catch (err) {
-      console.error("login error", err);
-      message.error(
-        err?.response?.data?.message || "Login failed. Please try again."
-      );
+      const msg =
+        err?.response?.data?.message ||
+        err?.response?.data?.msg ||
+        "❌ Username or password incorrect";
+      message.error(msg);
+      console.error("LOGIN ERROR →", err);
     } finally {
       setLoading(false);
     }
   };
 
-  // Open forgot password modal
-  const openForgotModal = () => {
-    forgotForm.resetFields();
-    setForgotVisible(true);
-  };
-
-  // Submit forgot password request
-  const handleForgotPassword = async () => {
-    try {
-      const values = await forgotForm.validateFields();
-      setForgotLoading(true);
-
-      await http.post("/auth/forgot-password", {
-        username: values.username,
-        email: values.email,
-      });
-
-      message.success(
-        "If the information is correct, a password reset email has been sent."
-      );
-      setForgotVisible(false);
-
-    } catch (err) {
-      if (err?.errorFields) return;
-      console.error("forgot password error", err);
-      message.error(
-        err?.response?.data?.message ||
-        "Unable to send reset email. Please try again."
-      );
-    } finally {
-      setForgotLoading(false);
-    }
-  };
-
   return (
     <>
-      <Card title="Booking Messenger System" style={{ maxWidth: 400, margin: "0 auto" }}>
-        <Form layout="vertical" form={form} onFinish={onFinish}>
-
-          <Form.Item
-            label="Username"
-            name="username"
-            rules={[{ required: true, message: "Please enter username" }]}
-          >
-            <Input autoComplete="username" />
+      <Card title="Messenger Booking System" style={{ width:350,margin:"70px auto" }}>
+        <Form form={form} layout="vertical" onFinish={onFinish}>
+          <Form.Item name="username" label="Username" rules={[{ required:true }]}>
+            <Input />
+          </Form.Item>
+          <Form.Item name="password" label="Password" rules={[{ required:true }]}>
+            <Input.Password />
           </Form.Item>
 
-          <Form.Item
-            label="Password"
-            name="password"
-            rules={[{ required: true, message: "Please enter password" }]}
-          >
-            <Input.Password autoComplete="current-password" />
-          </Form.Item>
+          <Button type="primary" htmlType="submit" loading={loading} block>
+            Login
+          </Button>
 
-          <Form.Item>
-            <Button
-              type="primary"
-              htmlType="submit"
-              block
-              loading={loading}
-              style={{ marginBottom: 8 }}
-            >
-              Login
-            </Button>
-            <div style={{ textAlign: "right" }}>
-              <Link onClick={openForgotModal}>Forgot password?</Link>
-            </div>
-          </Form.Item>
-
+          <div style={{textAlign:"right", marginTop:8}}>
+            <Link onClick={()=>setForgotVisible(true)}>Forgot password?</Link>
+          </div>
         </Form>
       </Card>
 
-      {/* Forgot Password Modal */}
+      {/* Forgot Password */}
       <Modal
         open={forgotVisible}
         title="Forgot Password"
-        onOk={handleForgotPassword}
-        onCancel={() => setForgotVisible(false)}
-        okText="Send Reset Email"
-        cancelText="Cancel"
         confirmLoading={forgotLoading}
-        destroyOnClose
+        onCancel={()=>setForgotVisible(false)}
+        onOk={async ()=>{
+          try{
+            const values = await forgotForm.validateFields();
+            setForgotLoading(true);
+            await http.post("/auth/forgot-password", values);
+            message.success("Reset mail sent if account is valid.");
+            setForgotVisible(false);
+          }catch(err){ message.error("Failed sending reset mail."); }
+          finally{ setForgotLoading(false); }
+        }}
       >
         <Form form={forgotForm} layout="vertical">
-
-          <Form.Item
-            label="Username"
-            name="username"
-            rules={[{ required: true, message: "Please enter username" }]}
-          >
+          <Form.Item name="username" label="Username" rules={[{required:true}]}>
             <Input />
           </Form.Item>
-
-          <Form.Item
-            label="Registered Email"
-            name="email"
-            rules={[
-              { required: true, message: "Please enter email" },
-              { type: "email", message: "Invalid email format" },
-            ]}
-          >
+          <Form.Item name="email" label="Registered Email" rules={[{ required:true,type:"email"}]}>
             <Input />
           </Form.Item>
-
-          <p style={{ fontSize: 12, color: "#888" }}>
-            The system will verify the account and send password reset details
-            to your email if the information is correct.
-          </p>
-
         </Form>
       </Modal>
     </>
