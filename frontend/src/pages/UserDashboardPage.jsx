@@ -153,7 +153,7 @@ export default function UserDashboardPage({ onLogout, onProfileChange }) {
       render: (s) => {
         const map = {
           PENDING: "Pending",
-          SUCCESS: "Success",
+          SUCCESS: "Completed",   // ✅ แสดง Completed แล้ว
           CANCEL: "Cancelled",
         };
         const color =
@@ -193,11 +193,10 @@ export default function UserDashboardPage({ onLogout, onProfileChange }) {
 
   const total = bookings.length;
   const pending = bookings.filter((b) => b.status === "PENDING").length;
-  const success = bookings.filter((b) => b.status === "SUCCESS").length;
+  const completed = bookings.filter((b) => b.status === "SUCCESS").length; // ✅ rename
   const cancel = bookings.filter((b) => b.status === "CANCEL").length;
 
   return (
-    // Main container (centered + max width)
     <div
       style={{
         maxWidth: 1200,
@@ -315,7 +314,8 @@ export default function UserDashboardPage({ onLogout, onProfileChange }) {
             <Statistic title="Pending" value={pending} />
           </Col>
           <Col xs={12} sm={6}>
-            <Statistic title="Success" value={success} />
+            {/* ✅ เปลี่ยนเป็น Completed */}
+            <Statistic title="Completed" value={completed} />
           </Col>
           <Col xs={12} sm={6}>
             <Statistic title="Cancelled" value={cancel} />

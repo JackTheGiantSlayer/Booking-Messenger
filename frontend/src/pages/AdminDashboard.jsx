@@ -16,9 +16,9 @@ export default function AdminDashboard() {
     total_users: 0,
   });
 
-  const [dailyData, setDailyData] = useState([]);       // line
-  const [companyData, setCompanyData] = useState([]);   // bar
-  const [statusData, setStatusData] = useState([]);     // pie
+  const [dailyData, setDailyData] = useState([]); // line
+  const [companyData, setCompanyData] = useState([]); // bar
+  const [statusData, setStatusData] = useState([]); // pie
 
   // ---------------- Load summary ----------------
   const loadSummary = async () => {
@@ -40,7 +40,9 @@ export default function AdminDashboard() {
     try {
       const [dailyRes, companyRes, statusRes] = await Promise.all([
         http.get("/admin/stats/daily-bookings", { params: { days: 30 } }),
-        http.get("/admin/stats/bookings-by-company", { params: { limit: 10 } }),
+        http.get("/admin/stats/bookings-by-company", {
+          params: { limit: 10 },
+        }),
         http.get("/admin/stats/bookings-by-status"),
       ]);
 
@@ -66,7 +68,7 @@ export default function AdminDashboard() {
     {
       id: "Bookings",
       data: (dailyData || []).map((item) => ({
-        x: item.date,   // e.g. "2025-12-04"
+        x: item.date, // e.g. "2025-12-04"
         y: item.count,
       })),
     },
@@ -77,7 +79,21 @@ export default function AdminDashboard() {
     count: item.count,
   }));
 
-  const pieData = statusData || [];
+  // แปลง SUCCESS -> Completed ฯลฯ สำหรับ Pie
+  const pieData = (statusData || []).map((item) => {
+    const rawId = item.id || item.status || item.label;
+
+    let friendly = rawId;
+    if (rawId === "SUCCESS") friendly = "Completed";
+    else if (rawId === "PENDING") friendly = "Pending";
+    else if (rawId === "CANCEL") friendly = "Cancelled";
+
+    return {
+      ...item,
+      id: friendly,
+      label: friendly,
+    };
+  });
 
   return (
     <>
@@ -86,26 +102,17 @@ export default function AdminDashboard() {
         <Row gutter={[16, 16]}>
           <Col xs={24} md={8}>
             <Card>
-              <Statistic
-                title="Bookings Today"
-                value={summary.today_bookings}
-              />
+              <Statistic title="Bookings Today" value={summary.today_bookings} />
             </Card>
           </Col>
           <Col xs={24} md={8}>
             <Card>
-              <Statistic
-                title="Total Bookings"
-                value={summary.total_bookings}
-              />
+              <Statistic title="Total Bookings" value={summary.total_bookings} />
             </Card>
           </Col>
           <Col xs={24} md={8}>
             <Card>
-              <Statistic
-                title="Total Users"
-                value={summary.total_users}
-              />
+              <Statistic title="Total Users" value={summary.total_users} />
             </Card>
           </Col>
         </Row>
