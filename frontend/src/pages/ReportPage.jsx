@@ -119,9 +119,9 @@ export default function ReportPage() {
   ).map((v) => ({ text: v, value: v }));
 
   const statusFilters = [
-    { text: "Pending", value: "PENDING" },
-    { text: "Success", value: "SUCCESS" },
-    { text: "Cancelled", value: "CANCEL" },
+    { text: "Pending", value: "Pending" },
+    { text: "Success", value: "Completed" },
+    { text: "Cancelled", value: "Cancelled" },
   ];
 
   // ---------------- Table Columns ----------------
